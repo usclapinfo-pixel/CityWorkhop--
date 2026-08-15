@@ -15,6 +15,7 @@ import { ProviderRegistryService } from './providers/provider-registry.service';
 import { ProviderConfigService } from './providers/provider-config.service';
 import { ProviderSecretStorageService } from './services/provider-secret-storage.service';
 import { ProviderAdminController } from './controllers/provider-admin.controller';
+import { ProviderAdminService } from './services/provider-admin.service';
 import { Msg91Provider } from './providers/msg91.provider';
 import { WhatsAppBusinessProvider } from './providers/whatsapp-business.provider';
 import { LocalWhatsAppProvider } from './providers/local-whatsapp.provider';
@@ -48,11 +49,12 @@ import { N8nAutomationProvider } from './providers/n8n.provider';
     ProviderRegistryService,
     ProviderConfigService,
     ProviderSecretStorageService,
+    ProviderAdminService,
     Msg91Provider,
     WhatsAppBusinessProvider,
     LocalWhatsAppProvider,
     N8nAutomationProvider,
   ],
-  exports: [CommunicationService, ProviderResolverService, ProviderConfigService, ProviderSecretStorageService],
+  exports: [CommunicationService, ProviderResolverService, ProviderConfigService, ProviderSecretStorageService, ProviderAdminService],
 })
 export class CommunicationModule {}
