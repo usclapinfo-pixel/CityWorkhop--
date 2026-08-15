@@ -30,8 +30,11 @@ export class ProviderConfig extends BaseEntity {
   })
   providerType:
     | 'MSG91'
+    | 'WHATSAPP'
     | 'LOCAL_WHATSAPP'
+    | 'LOCAL_WHATSAPP_API'
     | 'WHATSAPP_BUSINESS_API'
+    | 'N8N'
     | 'MANUAL'
     | 'TWILIO'
     | 'SENDGRID';

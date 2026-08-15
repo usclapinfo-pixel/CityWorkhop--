@@ -30,6 +30,16 @@ export class ProviderConfigService {
     return this.providerConfigRepository.findOne({ where: { id } });
   }
 
+  async getAllProviderConfigs(): Promise<ProviderConfig[]> {
+    return this.providerConfigRepository.find({
+      order: { priority: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
+  async getProviderConfig(id: string): Promise<ProviderConfig | null> {
+    return this.providerConfigRepository.findOne({ where: { id } });
+  }
+
   async getActiveProvidersForChannel(channel: CommunicationChannel, cityId?: string): Promise<ProviderConfig[]> {
     const where: any = { channel, isActive: true };
     if (cityId) {
@@ -47,14 +57,32 @@ export class ProviderConfigService {
     return this.providerCapabilityRepository.save(capability);
   }
 
+  async getAllProviderCapabilities(): Promise<ProviderCapability[]> {
+    return this.providerCapabilityRepository.find({
+      order: { providerType: 'ASC', channel: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
   async createCityMapping(input: Partial<CityProviderMapping>): Promise<CityProviderMapping> {
     const mapping = this.cityProviderMappingRepository.create(input);
     return this.cityProviderMappingRepository.save(mapping);
   }
 
+  async getAllCityMappings(): Promise<CityProviderMapping[]> {
+    return this.cityProviderMappingRepository.find({
+      order: { priority: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
   async createRoutingRule(input: Partial<ProviderRoutingRule>): Promise<ProviderRoutingRule> {
     const rule = this.providerRoutingRuleRepository.create(input);
     return this.providerRoutingRuleRepository.save(rule);
+  }
+
+  async getAllRoutingRules(): Promise<ProviderRoutingRule[]> {
+    return this.providerRoutingRuleRepository.find({
+      order: { priority: 'ASC', createdAt: 'DESC' },
+    });
   }
 
   async getProviderCapabilities(providerType: string): Promise<ProviderCapability[]> {

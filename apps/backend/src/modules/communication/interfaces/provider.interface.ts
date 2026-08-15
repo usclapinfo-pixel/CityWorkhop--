@@ -2,7 +2,9 @@ export type CommunicationChannel = 'sms' | 'whatsapp' | 'email';
 
 export type ProviderType =
   | 'MSG91'
+  | 'WHATSAPP'
   | 'LOCAL_WHATSAPP'
+  | 'LOCAL_WHATSAPP_API'
   | 'WHATSAPP_BUSINESS_API'
   | 'N8N'
   | 'MANUAL'

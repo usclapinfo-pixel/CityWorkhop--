@@ -12,6 +12,7 @@ import { SharedModule } from '@modules/shared/shared.module';
 import { ProviderResolverService } from './providers/provider-resolver.service';
 import { ProviderRegistryService } from './providers/provider-registry.service';
 import { ProviderConfigService } from './providers/provider-config.service';
+import { ProviderSecretStorageService } from './services/provider-secret-storage.service';
 import { Msg91Provider } from './providers/msg91.provider';
 import { WhatsAppBusinessProvider } from './providers/whatsapp-business.provider';
 import { LocalWhatsAppProvider } from './providers/local-whatsapp.provider';
@@ -42,11 +43,12 @@ import { N8nAutomationProvider } from './providers/n8n.provider';
     ProviderResolverService,
     ProviderRegistryService,
     ProviderConfigService,
+    ProviderSecretStorageService,
     Msg91Provider,
     WhatsAppBusinessProvider,
     LocalWhatsAppProvider,
     N8nAutomationProvider,
   ],
-  exports: [CommunicationService, ProviderResolverService, ProviderConfigService],
+  exports: [CommunicationService, ProviderResolverService, ProviderConfigService, ProviderSecretStorageService],
 })
 export class CommunicationModule {}
