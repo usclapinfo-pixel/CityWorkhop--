@@ -1,6 +1,7 @@
 import { Entity, Column, Index, Unique } from 'typeorm';
 import { BaseEntity } from '@database/base.entity';
 import { UserRole } from '../enums/user-role.enum';
+import { AccountStatus } from '../enums/account-status.enum';
 
 /**
  * User Entity - Base entity for all user types
@@ -53,6 +54,13 @@ export class User extends BaseEntity {
   role: UserRole;
 
   @Column({
+    type: 'enum',
+    enum: AccountStatus,
+    default: AccountStatus.PENDING,
+  })
+  status: AccountStatus;
+
+  @Column({
     type: 'boolean',
     default: false,
   })
@@ -77,6 +85,30 @@ export class User extends BaseEntity {
   isActive: boolean;
 
   @Column({
+    type: 'boolean',
+    default: false,
+  })
+  isDemoAccount: boolean;
+
+  @Column({
+    type: 'int',
+    default: 0,
+  })
+  failedLoginAttempts: number;
+
+  @Column({
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  lockedUntil?: Date;
+
+  @Column({
+    type: 'boolean',
+    default: true,
+  })
+  allowNotifications: boolean;
+
+  @Column({
     type: 'uuid',
     array: true,
     default: () => 'ARRAY[]::uuid[]',
@@ -91,7 +123,14 @@ export class User extends BaseEntity {
 
   @Column({
     type: 'jsonb',
-    default: () => "'{}}'",
+    default: () => "'{}'",
+    nullable: true,
+  })
+  providerPreferences?: Record<string, any>;
+
+  @Column({
+    type: 'jsonb',
+    default: () => "'{}'",
     nullable: true,
   })
   metadata?: Record<string, any>;

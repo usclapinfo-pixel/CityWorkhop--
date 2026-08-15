@@ -6,6 +6,7 @@ import { HealthController } from './health/health.controller';
 import { AuthModule } from '@modules/auth/auth.module';
 import { UsersModule } from '@modules/users/users.module';
 import { SharedModule } from '@modules/shared/shared.module';
+import { CommunicationModule } from '@modules/communication/communication.module';
 
 @Module({
   imports: [
@@ -14,9 +15,12 @@ import { SharedModule } from '@modules/shared/shared.module';
       envFilePath: '.env',
     }),
     TypeOrmModule.forRoot(typeOrmConfig),
+    // TODO: Add RedisModule when @nestjs-modules/redis is available
+    // RedisModule.forRootAsync({...}),
     AuthModule,
     UsersModule,
     SharedModule,
+    CommunicationModule,
   ],
   controllers: [HealthController],
 })

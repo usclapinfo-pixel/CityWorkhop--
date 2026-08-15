@@ -1,9 +1,10 @@
 export enum UserRole {
-  SUPER_ADMIN = 'super_admin',
-  CITY_ADMIN = 'city_admin',
-  FRANCHISE_OWNER = 'franchise_owner',
-  CUSTOMER = 'customer',
-  TECHNICIAN = 'technician',
-  RIDER = 'rider',
-  VENDOR = 'vendor',
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  CITY_ADMIN = 'CITY_ADMIN',
+  FRANCHISE_OWNER = 'FRANCHISE_OWNER',
+  VENDOR = 'VENDOR',
+  TECHNICIAN = 'TECHNICIAN',
+  RIDER = 'RIDER',
+  CUSTOMER = 'CUSTOMER',
 }
