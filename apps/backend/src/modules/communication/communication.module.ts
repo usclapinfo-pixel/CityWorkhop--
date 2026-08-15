@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '@modules/auth/auth.module';
 import { CommunicationService } from './communication.service';
 import { ProviderConfig } from './entities/provider-config.entity';
 import { ProviderCapability } from './entities/provider-capability.entity';
@@ -36,6 +37,7 @@ import { N8nAutomationProvider } from './providers/n8n.provider';
   imports: [
     TypeOrmModule.forFeature([ProviderConfig, ProviderCapability, CityProviderMapping, ProviderRoutingRule, OTPToken]),
     SharedModule,
+    forwardRef(() => AuthModule),
   ],
   controllers: [ProviderAdminController],
   providers: [

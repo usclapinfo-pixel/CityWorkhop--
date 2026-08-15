@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -32,7 +32,7 @@ import { IdempotencyService } from '@common/services/idempotency.service';
         },
       }),
     }),
-    CommunicationModule,
+    forwardRef(() => CommunicationModule),
     SharedModule,
   ],
   controllers: [AuthController],
