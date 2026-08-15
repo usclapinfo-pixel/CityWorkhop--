@@ -240,7 +240,7 @@ export class CreateUserDto {
 ### Health Check
 
 ```
-GET /api/v1/health
+GET /health
 Response: { "status": "ok", "timestamp": "2024-01-15T10:35:00Z" }
 ```
 

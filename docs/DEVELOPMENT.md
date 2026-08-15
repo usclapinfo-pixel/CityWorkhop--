@@ -68,7 +68,7 @@ docker exec cityworkhop-postgres pg_isready -U postgres -d city_workshop
 npm run dev --workspace=apps/backend
 
 # Verify server is running
-curl http://localhost:3001
+curl http://localhost:3001/health
 
 # Check logs for startup confirmation
 ```

@@ -185,7 +185,7 @@ JWT_SECRET=your_secret_here        # JWT secret (change in production)
 
 ### Health Check
 ```
-GET /api/v1/health
+GET /health
 ```
 
 ### Users (Implementation in Phase 2)

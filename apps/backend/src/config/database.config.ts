@@ -3,16 +3,39 @@ import * as path from 'path';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-const getEnv = (productionKey: string, fallbackKey: string, localFallback: string): string => {
-  const productionValue = process.env[productionKey] || process.env[fallbackKey];
+const isLocalhostLike = (value?: string): boolean => {
+  if (!value) {
+    return false;
+  }
 
-  if (isProduction && !productionValue) {
+  return ['localhost', '127.0.0.1', '::1'].includes(value.trim().toLowerCase());
+};
+
+const getEnv = (productionKey: string, fallbackKey: string, localFallback: string): string => {
+  const productionValue = process.env[productionKey];
+  const fallbackValue = process.env[fallbackKey];
+
+  if (isProduction) {
+    if (productionValue && productionValue.trim()) {
+      return productionValue;
+    }
+
+    if (fallbackValue && !isLocalhostLike(fallbackValue)) {
+      return fallbackValue;
+    }
+
+    if (fallbackValue && isLocalhostLike(fallbackValue)) {
+      throw new Error(
+        `Production database configuration is invalid: ${fallbackKey} resolves to localhost. Set ${productionKey} instead.`
+      );
+    }
+
     throw new Error(
-      `Missing required production database environment variable: ${productionKey} or ${fallbackKey}`
+      `Missing required production database environment variable: ${productionKey}`
     );
   }
 
-  return productionValue || process.env[fallbackKey] || localFallback;
+  return productionValue || fallbackValue || localFallback;
 };
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
