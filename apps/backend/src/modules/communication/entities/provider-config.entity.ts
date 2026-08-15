@@ -1,5 +1,6 @@
 import { Entity, Column, Index, Unique } from 'typeorm';
 import { BaseEntity } from '@database/base.entity';
+import { CommunicationChannel } from '../interfaces/provider.interface';
 
 /**
  * Provider Configuration Entity - Database-first provider setup
@@ -39,7 +40,7 @@ export class ProviderConfig extends BaseEntity {
     type: 'varchar',
     length: 20,
   })
-  channel: 'sms' | 'whatsapp' | 'email' | 'push_notification';
+  channel: CommunicationChannel;
 
   @Column({
     type: 'boolean',

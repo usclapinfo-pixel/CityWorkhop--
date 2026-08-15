@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
 import { ProviderConfig } from './entities/provider-config.entity';
 import { ICommunicationService } from './interfaces/communication.interface';
+import { ProviderType } from './interfaces/provider.interface';
 import { OTPService } from '@modules/auth/services/otp.service';
+import { ProviderResolverService } from './providers/provider-resolver.service';
+import { ProviderRegistryService } from './providers/provider-registry.service';
+import { AuditService } from '@modules/shared/audit/audit.service';
 
 /**
  * Communication Service - Provider-agnostic wrapper
@@ -19,9 +21,10 @@ import { OTPService } from '@modules/auth/services/otp.service';
 @Injectable()
 export class CommunicationService implements ICommunicationService {
   constructor(
-    @InjectRepository(ProviderConfig)
-    private readonly providerConfigRepository: Repository<ProviderConfig>,
     private readonly otpService: OTPService,
+    private readonly providerResolverService: ProviderResolverService,
+    private readonly providerRegistryService: ProviderRegistryService,
+    private readonly auditService: AuditService,
   ) {}
 
   /**
@@ -31,32 +34,9 @@ export class CommunicationService implements ICommunicationService {
   private async getActiveProvider(
     channel: 'sms' | 'whatsapp' | 'email',
     cityId?: string,
+    moduleName?: string,
   ): Promise<ProviderConfig | null> {
-    // Try city-specific provider first
-    if (cityId) {
-      const cityProvider = await this.providerConfigRepository.findOne({
-        where: {
-          cityId,
-          channel,
-          isActive: true,
-        },
-        order: { priority: 'ASC' },
-      });
-
-      if (cityProvider) {
-        return cityProvider;
-      }
-    }
-
-    // Fall back to global provider
-    return this.providerConfigRepository.findOne({
-      where: {
-        cityId: IsNull(),
-        channel,
-        isActive: true,
-      },
-      order: { priority: 'ASC' },
-    });
+    return this.providerResolverService.resolveProvider(channel, cityId, moduleName);
   }
 
   async sendOTP(
@@ -72,28 +52,51 @@ export class CommunicationService implements ICommunicationService {
     });
 
     // Get provider configuration
-    const provider = await this.getActiveProvider(channel, options?.cityId);
+    const provider = await this.getActiveProvider(channel, options?.cityId, 'auth');
 
     if (!provider) {
-      // Fallback: just return OTP token (no actual sending in this case)
       console.warn(`No active ${channel} provider configured for city ${options?.cityId}`);
+      await this.auditService.log({
+        eventType: 'communication.provider_missing',
+        action: 'otp_request',
+        phoneNumber,
+        status: 'warning',
+        severity: 'medium',
+        metadata: { channel, cityId: options?.cityId },
+      });
       return result;
     }
 
-    // Send via appropriate provider
+    const adapter = this.providerRegistryService.getProvider(provider.providerType as ProviderType);
+
     try {
-      if (provider.providerType === 'MSG91') {
-        await this.sendViaMsg91OTP(phoneNumber, result.otpToken, provider, options?.language);
-      } else if (provider.providerType === 'TWILIO') {
-        await this.sendViaTwilioSMS(phoneNumber, result.otpToken, provider);
-      } else if (provider.providerType === 'LOCAL_WHATSAPP') {
-        console.log(`[LOCAL] WhatsApp OTP sent to ${phoneNumber}`);
-      } else if (provider.providerType === 'MANUAL') {
-        console.log(`[MANUAL] Admin should send OTP to ${phoneNumber}`);
+      if (adapter?.sendOTP) {
+        const response = await adapter.sendOTP(phoneNumber, {
+          otpToken: result.otpToken,
+          channel,
+          language: options?.language,
+        });
+
+        await this.auditService.log({
+          eventType: 'communication.provider_send_otp',
+          action: 'otp_request',
+          phoneNumber,
+          status: response.success ? 'success' : 'failure',
+          severity: response.success ? 'low' : 'high',
+          metadata: { providerType: provider.providerType, response },
+        });
       }
     } catch (error) {
       console.error(`Error sending OTP via ${provider.providerType}:`, error);
-      // Still return OTP token - provider can retry later
+      await this.auditService.log({
+        eventType: 'communication.provider_send_otp_failed',
+        action: 'otp_request',
+        phoneNumber,
+        status: 'failure',
+        severity: 'high',
+        errorMessage: error instanceof Error ? error.message : 'Unknown provider error',
+        metadata: { providerType: provider.providerType },
+      });
     }
 
     return result;
@@ -109,26 +112,23 @@ export class CommunicationService implements ICommunicationService {
     templateName: string,
     parameters?: Record<string, any>,
   ): Promise<{ messageId: string; status: string }> {
-    const provider = await this.getActiveProvider('whatsapp', parameters?.cityId);
+    const provider = await this.getActiveProvider('whatsapp', parameters?.cityId, 'communication');
 
     if (!provider) {
       throw new Error('No active WhatsApp provider configured');
     }
 
-    // Send via appropriate provider
-    if (provider.providerType === 'MSG91') {
-      return this.sendViaMsg91WhatsApp(phoneNumber, templateName, parameters, provider);
-    } else if (provider.providerType === 'WHATSAPP_BUSINESS_API') {
-      return this.sendViaWhatsAppBusinessAPI(phoneNumber, templateName, parameters, provider);
-    } else if (provider.providerType === 'LOCAL_WHATSAPP') {
-      // For local development
+    const adapter = this.providerRegistryService.getProvider(provider.providerType as ProviderType);
+
+    if (adapter?.sendWhatsApp) {
+      const result = await adapter.sendWhatsApp(phoneNumber, templateName, parameters ?? {});
       return {
-        messageId: `local-${Date.now()}`,
-        status: 'queued',
+        messageId: result.messageId ?? `whatsapp-${Date.now()}`,
+        status: result.status ?? 'queued',
       };
-    } else {
-      throw new Error(`WhatsApp not supported by provider ${provider.providerType}`);
     }
+
+    throw new Error(`WhatsApp not supported by provider ${provider.providerType}`);
   }
 
   async sendMagicLink(email: string, link: string): Promise<void> {
@@ -147,13 +147,14 @@ export class CommunicationService implements ICommunicationService {
       <p>If you didn't request this link, you can safely ignore this email.</p>
     `;
 
-    if (provider.providerType === 'SENDGRID') {
-      await this.sendViaSendgrid(email, subject, htmlBody, provider);
-    } else if (provider.providerType === 'MANUAL') {
-      console.log(`[MANUAL] Send magic link email to ${email}`);
-    } else {
-      console.warn(`Email not supported by provider ${provider.providerType}`);
+    const adapter = this.providerRegistryService.getProvider(provider.providerType as ProviderType);
+
+    if (adapter?.sendEmail) {
+      await adapter.sendEmail(email, subject, htmlBody, { link });
+      return;
     }
+
+    console.warn(`Email not supported by provider ${provider.providerType}`);
   }
 
   async sendEmail(to: string, subject: string, htmlBody: string): Promise<void> {
@@ -164,23 +165,24 @@ export class CommunicationService implements ICommunicationService {
       return;
     }
 
-    if (provider.providerType === 'SENDGRID') {
-      await this.sendViaSendgrid(to, subject, htmlBody, provider);
+    const adapter = this.providerRegistryService.getProvider(provider.providerType as ProviderType);
+    if (adapter?.sendEmail) {
+      await adapter.sendEmail(to, subject, htmlBody, { source: 'sendEmail' });
     }
   }
 
   async sendSMS(phoneNumber: string, message: string): Promise<void> {
-    const provider = await this.getActiveProvider('sms');
+    const provider = await this.getActiveProvider('sms', undefined, 'sms');
 
     if (!provider) {
       console.warn('No active SMS provider configured');
       return;
     }
 
-    if (provider.providerType === 'MSG91') {
-      await this.sendViaTwilioSMS(phoneNumber, message, provider);
-    } else if (provider.providerType === 'TWILIO') {
-      await this.sendViaTwilioSMS(phoneNumber, message, provider);
+    const adapter = this.providerRegistryService.getProvider(provider.providerType as ProviderType);
+
+    if (adapter?.sendOTP) {
+      await adapter.sendOTP(phoneNumber, { message });
     }
   }
 
@@ -193,72 +195,4 @@ export class CommunicationService implements ICommunicationService {
     };
   }
 
-  // Private provider-specific implementations
-
-  private async sendViaMsg91OTP(
-    phoneNumber: string,
-    otpToken: string,
-    provider: ProviderConfig,
-    language?: string,
-  ): Promise<void> {
-    // TODO: Implement actual MSG91 API call
-    // This is a stub - actual implementation requires MSG91 SDK/HTTP client
-    console.log(`[MSG91] OTP ${otpToken} (${language ?? 'EN'}) would be sent to ${phoneNumber} via ${provider.providerType}`);
-    // Example:
-    // const response = await fetch('https://api.msg91.com/app/smsapi/send', {
-    //   method: 'POST',
-    //   body: new URLSearchParams({
-    //     route: 'otp',
-    //     mobiles: phoneNumber,
-    //     authkey: provider.credentials.apiKey,
-    //   }),
-    // });
-  }
-
-  private async sendViaMsg91WhatsApp(
-    phoneNumber: string,
-    templateName: string,
-    parameters: Record<string, any> | undefined,
-    _provider?: ProviderConfig,
-  ): Promise<{ messageId: string; status: string }> {
-    // TODO: Implement actual MSG91 WhatsApp API call
-    console.log(`[MSG91 WhatsApp] Message to ${phoneNumber} with template ${templateName} and params ${JSON.stringify(parameters ?? {})}`);
-    return {
-      messageId: `msg91-${Date.now()}`,
-      status: 'queued',
-    };
-  }
-
-  private async sendViaTwilioSMS(
-    phoneNumber: string,
-    message: string,
-    _provider?: ProviderConfig,
-  ): Promise<void> {
-    // TODO: Implement actual Twilio API call
-    console.log(`[Twilio] SMS to ${phoneNumber}: ${message}`);
-  }
-
-  private async sendViaWhatsAppBusinessAPI(
-    phoneNumber: string,
-    templateName: string,
-    _parameters?: Record<string, any>,
-    _provider?: ProviderConfig,
-  ): Promise<{ messageId: string; status: string }> {
-    // TODO: Implement actual WhatsApp Business API call
-    console.log(`[WhatsApp Business API] Message to ${phoneNumber} with template ${templateName}`);
-    return {
-      messageId: `waba-${Date.now()}`,
-      status: 'queued',
-    };
-  }
-
-  private async sendViaSendgrid(
-    to: string,
-    subject: string,
-    _htmlBody?: string,
-    _provider?: ProviderConfig,
-  ): Promise<void> {
-    // TODO: Implement actual Sendgrid API call
-    console.log(`[Sendgrid] Email to ${to} - Subject: ${subject}`);
-  }
 }
