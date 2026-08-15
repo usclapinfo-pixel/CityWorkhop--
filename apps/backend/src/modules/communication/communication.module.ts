@@ -13,6 +13,7 @@ import { ProviderResolverService } from './providers/provider-resolver.service';
 import { ProviderRegistryService } from './providers/provider-registry.service';
 import { ProviderConfigService } from './providers/provider-config.service';
 import { ProviderSecretStorageService } from './services/provider-secret-storage.service';
+import { ProviderAdminController } from './controllers/provider-admin.controller';
 import { Msg91Provider } from './providers/msg91.provider';
 import { WhatsAppBusinessProvider } from './providers/whatsapp-business.provider';
 import { LocalWhatsAppProvider } from './providers/local-whatsapp.provider';
@@ -36,6 +37,7 @@ import { N8nAutomationProvider } from './providers/n8n.provider';
     TypeOrmModule.forFeature([ProviderConfig, ProviderCapability, CityProviderMapping, ProviderRoutingRule, OTPToken]),
     SharedModule,
   ],
+  controllers: [ProviderAdminController],
   providers: [
     CommunicationService,
     OTPService,
