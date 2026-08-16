@@ -7,6 +7,7 @@ import { AuthModule } from '@modules/auth/auth.module';
 import { UsersModule } from '@modules/users/users.module';
 import { SharedModule } from '@modules/shared/shared.module';
 import { CommunicationModule } from '@modules/communication/communication.module';
+import { CatalogModule } from '@modules/catalog/catalog.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { CommunicationModule } from '@modules/communication/communication.module
     UsersModule,
     SharedModule,
     CommunicationModule,
+    CatalogModule,
   ],
   controllers: [HealthController],
 })
