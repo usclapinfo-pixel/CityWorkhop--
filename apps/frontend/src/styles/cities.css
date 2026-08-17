@@ -1,0 +1,4 @@
+.city-filter-grid { display: grid; grid-template-columns: 2fr repeat(3, 1fr) auto auto; gap: .7rem; align-items: center; }
+.city-form { display: grid; gap: .8rem; margin-top: 1rem; }
+@media (max-width: 900px) { .city-filter-grid { grid-template-columns: repeat(2, 1fr); } .city-filter-grid input:first-child { grid-column: 1 / -1; } }
+@media (max-width: 520px) { .city-filter-grid { grid-template-columns: 1fr; } }

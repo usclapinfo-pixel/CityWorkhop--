@@ -10,6 +10,7 @@ import { ProviderCapability } from '../entities/provider-capability.entity';
 import { CityProviderMapping } from '../entities/city-provider-mapping.entity';
 import { ProviderRoutingRule } from '../entities/provider-routing-rule.entity';
 import { ProviderSecretStorageService } from './provider-secret-storage.service';
+import { CityService } from '@modules/cities/services/city.service';
 
 @Injectable()
 export class ProviderAdminService {
@@ -17,6 +18,7 @@ export class ProviderAdminService {
     private readonly providerConfigService: ProviderConfigService,
     private readonly auditService: AuditService,
     private readonly providerSecretStorageService: ProviderSecretStorageService,
+    private readonly cityService: CityService,
   ) {}
 
   private maskSecrets(value: any): any {
@@ -159,6 +161,7 @@ export class ProviderAdminService {
   }
 
   async createProvider(input: Partial<ProviderConfig>, userId?: string, userRole?: string): Promise<any> {
+    if (input.cityId && userId && userRole) await this.cityService.validateActiveCityForActor({ sub: userId, role: userRole }, input.cityId);
     const providerType = input.providerType ?? 'MSG91';
     const safeCredentials = this.sanitizeCredentialsForWrite(input.credentials ?? {});
     this.validateProviderConfiguration(providerType, safeCredentials);
@@ -194,6 +197,11 @@ export class ProviderAdminService {
     const provider = await this.providerConfigService.getProviderConfig(id);
     if (!provider) {
       throw new NotFoundException('Provider not found');
+    }
+
+    const effectiveCityId = input.cityId ?? provider.cityId;
+    if (effectiveCityId && userId && userRole) {
+      await this.cityService.validateActiveCityForActor({ sub: userId, role: userRole }, effectiveCityId);
     }
 
     const nextProviderType = input.providerType ?? provider.providerType;
@@ -233,6 +241,10 @@ export class ProviderAdminService {
     const provider = await this.providerConfigService.getProviderConfig(id);
     if (!provider) {
       throw new NotFoundException('Provider not found');
+    }
+
+    if (provider.cityId && userId && userRole) {
+      await this.cityService.validateActiveCityForActor({ sub: userId, role: userRole }, provider.cityId);
     }
 
     const updated = await this.providerConfigService.updateProviderConfig(id, { isActive: true, lastTestSuccess: false });
@@ -391,6 +403,7 @@ export class ProviderAdminService {
   }
 
   async createRoutingRule(input: Partial<ProviderRoutingRule>, userId?: string, userRole?: string): Promise<ProviderRoutingRule> {
+    if (input.cityId && userId && userRole) await this.cityService.validateActiveCityForActor({ sub: userId, role: userRole }, input.cityId);
     const rule = await this.providerConfigService.createRoutingRule(input);
 
     await this.auditService.log({
@@ -413,6 +426,7 @@ export class ProviderAdminService {
   }
 
   async createCityMapping(input: Partial<CityProviderMapping>, userId?: string, userRole?: string): Promise<CityProviderMapping> {
+    if (input.cityId && userId && userRole) await this.cityService.validateActiveCityForActor({ sub: userId, role: userRole }, input.cityId);
     const mapping = await this.providerConfigService.createCityMapping(input);
 
     await this.auditService.log({

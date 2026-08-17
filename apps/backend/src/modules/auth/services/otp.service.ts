@@ -1,15 +1,18 @@
 import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { OTPToken } from '../entities/otp-token.entity';
 import { IdempotencyService } from '@common/services/idempotency.service';
 import { AuditService } from '@modules/shared/audit/audit.service';
+import * as bcrypt from 'bcryptjs';
+import { randomInt, randomUUID } from 'crypto';
 
 export interface OTPOptions {
   length?: number; // Default 6
   channel?: 'sms' | 'whatsapp' | 'email';
   expiresInMinutes?: number; // Default 10
   language?: 'EN' | 'HI'; // For multi-language support
+  purpose?: 'REGISTRATION' | 'LOGIN'; // OTP purpose
 }
 
 /**
@@ -39,10 +42,11 @@ export class OTPService {
     phoneNumber: string | null,
     email: string | null,
     options: OTPOptions = {},
-  ): Promise<{ otpToken: string; expiresIn: number }> {
+  ): Promise<{ otpToken: string; expiresIn: number; otpCode: string }> {
     const length = options.length || this.OTP_LENGTH;
     const expiresInMinutes = options.expiresInMinutes || this.OTP_EXPIRY_MINUTES;
     const channel = options.channel || 'sms';
+    const purpose = options.purpose;
 
     // Validate input
     if (!phoneNumber && !email) {
@@ -59,17 +63,18 @@ export class OTPService {
       }
     }
 
-    // Generate OTP code
+    // Generate OTP code using a cryptographically secure random source.
     const otpCode = this.generateRandomCode(length);
-    // TODO: Hash OTP using bcrypt (requires bcrypt package)
-    // For now, store plain (not secure - Phase 2A stub)
-    const otpHash = otpCode; // Stub for development
+    const otpHash = await bcrypt.hash(otpCode, 10);
 
     // Generate reference token
-    const otpToken = crypto.randomUUID();
+    const otpToken = randomUUID();
 
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + expiresInMinutes);
+
+    // Invalidate only pending OTPs for this identity and delivery channel.
+    await this.invalidatePendingOTPs(phoneNumber, email, channel, purpose);
 
     // Save OTP (hashed, never plain text)
     const otp = this.otpRepository.create({
@@ -79,6 +84,7 @@ export class OTPService {
       otpToken,
       status: 'pending',
       channel,
+      purpose,
       expiresAt,
       metadata: {
         language: options.language || 'EN',
@@ -102,6 +108,7 @@ export class OTPService {
     return {
       otpToken,
       expiresIn: expiresInMinutes * 60 * 1000, // milliseconds
+      otpCode,
     };
   }
 
@@ -180,9 +187,7 @@ export class OTPService {
       throw new UnauthorizedException('Max OTP attempts exceeded. Request a new OTP.');
     }
 
-    // TODO: Verify OTP code using bcrypt (requires bcrypt package)
-    // For now, compare plain text (not secure - Phase 2A stub)
-    const isValid = otpCode === '123456'; // Stub for development
+    const isValid = await bcrypt.compare(otpCode, otpRecord.otpHash);
 
     if (!isValid) {
       // Increment attempts
@@ -204,11 +209,18 @@ export class OTPService {
       throw new UnauthorizedException('Invalid OTP code');
     }
 
-    // Mark as verified
-    await this.otpRepository.update(otpRecord.id, {
+    // Claim verification atomically so concurrent requests cannot both succeed.
+    const verification = await this.otpRepository.update(
+      { id: otpRecord.id, status: 'pending' },
+      {
       status: 'verified',
       verifiedAt: new Date(),
-    });
+      },
+    );
+
+    if (verification.affected !== 1) {
+      throw new UnauthorizedException('OTP has already been used');
+    }
 
     await this.auditService.log({
       eventType: 'auth.otp_verified',
@@ -238,7 +250,7 @@ export class OTPService {
    */
   async cleanupExpiredOTPs(): Promise<number> {
     const result = await this.otpRepository.delete({
-      expiresAt: { $lt: new Date() } as any,
+      expiresAt: LessThan(new Date()),
     });
 
     return result.affected || 0;
@@ -247,8 +259,30 @@ export class OTPService {
   private generateRandomCode(length: number): string {
     let code = '';
     for (let i = 0; i < length; i++) {
-      code += Math.floor(Math.random() * 10).toString();
+      code += randomInt(0, 10).toString();
     }
     return code;
+  }
+
+  private async invalidatePendingOTPs(
+    phoneNumber: string | null,
+    email: string | null,
+    channel: OTPOptions['channel'],
+    purpose: OTPOptions['purpose'],
+  ): Promise<void> {
+    const identity = phoneNumber
+      ? { phoneNumber }
+      : email
+        ? { email }
+        : null;
+
+    if (!identity) {
+      return;
+    }
+
+    await this.otpRepository.update(
+      { ...identity, channel, purpose, status: 'pending' },
+      { status: 'failed' },
+    );
   }
 }

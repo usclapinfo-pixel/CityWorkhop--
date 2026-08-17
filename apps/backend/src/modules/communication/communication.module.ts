@@ -20,6 +20,7 @@ import { Msg91Provider } from './providers/msg91.provider';
 import { WhatsAppBusinessProvider } from './providers/whatsapp-business.provider';
 import { LocalWhatsAppProvider } from './providers/local-whatsapp.provider';
 import { N8nAutomationProvider } from './providers/n8n.provider';
+import { CitiesModule } from '@modules/cities/cities.module';
 
 /**
  * Communication Module - Handles SMS, WhatsApp, Email, Push notifications
@@ -39,6 +40,7 @@ import { N8nAutomationProvider } from './providers/n8n.provider';
     TypeOrmModule.forFeature([ProviderConfig, ProviderCapability, CityProviderMapping, ProviderRoutingRule, OTPToken]),
     SharedModule,
     forwardRef(() => AuthModule),
+    CitiesModule,
   ],
   controllers: [ProviderAdminController],
   providers: [

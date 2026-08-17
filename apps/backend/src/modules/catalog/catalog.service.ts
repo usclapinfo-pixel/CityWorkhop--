@@ -25,6 +25,10 @@ export class CatalogService {
     return this.applianceRepository.find({ where: { isActive: true }, order: { displayOrder: 'ASC', name: 'ASC' } });
   }
 
+  async listPublicCities() {
+    return this.cityService.listActivePublicCities();
+  }
+
   async listServicesForAppliance(applianceId: string, cityId: string): Promise<ServiceOffering[]> {
     const appliance = await this.applianceRepository.findOne({ where: { id: applianceId, isActive: true } });
     if (!appliance) throw new NotFoundException('Appliance is not available');

@@ -22,7 +22,7 @@ describe('CatalogService', () => {
     const categoryRepository = overrides.categoryRepository ?? makeRepository(category);
     const serviceRepository = overrides.serviceRepository ?? makeRepository(offering);
     const mappingRepository = overrides.mappingRepository ?? makeRepository(mapping);
-    const cityService = overrides.cityService ?? { validateActiveCityForActor: jest.fn(async () => ({ id: 'city-1', isActive: true })) };
+    const cityService = overrides.cityService ?? { validateActiveCityForActor: jest.fn(async () => ({ id: 'city-1', isActive: true })), listActivePublicCities: jest.fn(async () => [{ id: 'city-1', name: 'Bareilly', state: 'UP', district: 'Bareilly' }]) };
     const auditService = overrides.auditService ?? { log: jest.fn(async () => ({ id: 'audit-1' })) };
     return {
       service: new CatalogService(applianceRepository as any, categoryRepository as any, serviceRepository as any, mappingRepository as any, cityService as any, auditService as any),
@@ -89,5 +89,12 @@ describe('CatalogService', () => {
     applianceRepository.findOne.mockResolvedValue(null);
     const { service } = createService({ applianceRepository });
     await expect(service.listServicesForAppliance('missing', 'city-1')).rejects.toThrow(NotFoundException);
+  });
+
+  it('delegates public city listing to CityService', async () => {
+    const { service, cityService } = createService();
+    const cities = await service.listPublicCities();
+    expect(cityService.listActivePublicCities).toHaveBeenCalled();
+    expect(cities).toEqual([{ id: 'city-1', name: 'Bareilly', state: 'UP', district: 'Bareilly' }]);
   });
 });

@@ -7,6 +7,7 @@ export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 
   @Get('appliances') listAppliances() { return this.catalogService.listActiveAppliances(); }
+  @Get('cities') listCities() { return this.catalogService.listPublicCities(); }
   @Get('appliances/:applianceId/services')
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   listServices(@Param('applianceId', ParseUUIDPipe) applianceId: string, @Query() query: CatalogListQueryDto) {

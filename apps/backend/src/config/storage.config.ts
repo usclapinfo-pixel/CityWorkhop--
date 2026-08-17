@@ -1,5 +1,11 @@
 export const storageConfig = {
   type: process.env.STORAGE_TYPE || 'local', // 'local' | 's3' | 'minio'
+  supabase: {
+    url: process.env.SUPABASE_URL || '',
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    kycBucket: process.env.SUPABASE_KYC_BUCKET || 'kyc-documents',
+    signedUrlExpirySeconds: 300,
+  },
   aws: {
     region: process.env.AWS_REGION || 'ap-south-1',
     bucket: process.env.AWS_S3_BUCKET || 'cityworkhop-local',

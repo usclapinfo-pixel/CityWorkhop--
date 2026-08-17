@@ -90,17 +90,20 @@ export class AuthService {
       throw new BadRequestException('Phone number is already registered');
     }
 
-    // Generate OTP via OTP service
-    const { otpToken, expiresIn } = await this.otpService.generateOTP(phoneNumber, null, {
+    // Generate OTP exactly once via OTP service
+    const { otpToken, expiresIn, otpCode } = await this.otpService.generateOTP(phoneNumber, null, {
       channel: channel as any,
       language: language as any,
+      purpose: 'REGISTRATION',
     });
 
-    // Send OTP via communication service
+    // Send the already-generated OTP via communication service
     try {
       await this.communicationService.sendOTP(phoneNumber, {
         channel,
         language,
+        otpToken,
+        otpCode,
       });
     } catch (error) {
       console.error('Failed to send OTP:', error);
@@ -138,6 +141,8 @@ export class AuthService {
     user: any;
     tokens: { accessToken: string; refreshToken: string };
   }> {
+    this.assertPublicRegistrationRole(role);
+
     // Verify OTP
     const otpRecord = await this.otpService.getOTPRecord(otpToken);
     if (!otpRecord) {
@@ -267,14 +272,15 @@ export class AuthService {
       throw new ForbiddenException('Account is not active');
     }
 
-    // Generate and send OTP
-    const { otpToken, expiresIn } = await this.otpService.generateOTP(phoneNumber, null, {
+    // Generate the OTP exactly once and pass the same values to communication
+    const { otpToken, expiresIn, otpCode } = await this.otpService.generateOTP(phoneNumber, null, {
       channel: channel as any,
       language: language as any,
+      purpose: 'LOGIN',
     });
 
     try {
-      await this.communicationService.sendOTP(phoneNumber, { channel, language });
+      await this.communicationService.sendOTP(phoneNumber, { channel, language, otpToken, otpCode });
     } catch (error) {
       console.error('Failed to send login OTP:', error);
     }
@@ -415,6 +421,8 @@ export class AuthService {
     user: any;
     tokens: { accessToken: string; refreshToken: string };
   }> {
+    this.assertPublicRegistrationRole(role);
+
     // Verify magic link
     const { email } = await this.magicLinkService.verifyMagicLink(token, ipAddress);
 
@@ -645,6 +653,8 @@ export class AuthService {
     user: any;
     tokens: { accessToken: string; refreshToken: string };
   }> {
+    this.assertPublicRegistrationRole(role);
+
     // Generate unique demo account
     const demoId = crypto.randomBytes(4).toString('hex');
     const demoEmail = `demo-${demoId}@cityworkshop.local`;
@@ -688,6 +698,13 @@ export class AuthService {
   }
 
   // ========== Private Helper Methods ==========
+
+  private assertPublicRegistrationRole(role: UserRole): void {
+    const privilegedRoles = [UserRole.ADMIN, UserRole.CITY_ADMIN, UserRole.SUPER_ADMIN];
+    if (privilegedRoles.includes(role)) {
+      throw new BadRequestException('Privileged roles must be provisioned by an authorized administrator');
+    }
+  }
 
   private generateTokens(user: User): { accessToken: string; refreshToken: string } {
     const accessToken = this.jwtService.sign(

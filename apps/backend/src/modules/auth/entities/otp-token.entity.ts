@@ -56,6 +56,12 @@ export class OTPToken extends BaseEntity {
     default: 'sms',
   })
   channel: 'sms' | 'whatsapp' | 'email'; // Delivery channel
+  @Column({
+    type: 'enum',
+    enum: ['REGISTRATION', 'LOGIN'],
+    nullable: true,
+  })
+  purpose?: 'REGISTRATION' | 'LOGIN'; // OTP purpose
 
   @Column({
     type: 'timestamp',

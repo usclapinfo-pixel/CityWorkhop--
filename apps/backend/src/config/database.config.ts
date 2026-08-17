@@ -1,5 +1,8 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import * as dotenv from 'dotenv';
 import * as path from 'path';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const isProduction = process.env.NODE_ENV === 'production';
 

@@ -1,0 +1,15 @@
+.storefront-page { max-width: 1200px; margin: 0 auto; padding: clamp(1.2rem, 4vw, 3rem); display: grid; gap: 1.6rem; }
+.storefront-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; flex-wrap: wrap; }
+.storefront-header h1 { margin: .4rem 0; }
+.storefront-city { display: grid; gap: .4rem; min-width: 220px; }
+.storefront-city label { font-size: .75rem; font-weight: 600; color: var(--muted); }
+.storefront-city-error { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: #a53d3d; }
+.storefront-search .input { max-width: 480px; }
+.storefront-section h2 { margin-bottom: 1rem; }
+.storefront-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .9rem; }
+.storefront-card { text-align: left; background: var(--paper); border: 1px solid var(--line); padding: 1rem; display: grid; gap: .4rem; cursor: pointer; }
+.storefront-card small { color: var(--muted); }
+.storefront-card.is-selected { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(15,118,110,.12); }
+.storefront-details { display: grid; gap: .7rem; }
+.storefront-detail-facts { display: grid; gap: .3rem; font-size: .85rem; color: var(--muted); }
+@media (max-width: 640px) { .storefront-header { flex-direction: column; align-items: stretch; } .storefront-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }

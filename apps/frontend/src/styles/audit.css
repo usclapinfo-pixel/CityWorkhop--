@@ -1,0 +1,7 @@
+.audit-filter-grid { display: grid; grid-template-columns: 2fr repeat(5, 1fr); gap: .7rem; align-items: center; }
+.audit-filter-actions { display: flex; gap: .5rem; }
+.audit-pagination { display: flex; justify-content: flex-end; align-items: center; gap: .7rem; flex-wrap: wrap; }
+.audit-detail-modal { max-width: 720px; max-height: 86vh; overflow: auto; }
+.audit-detail-modal pre { padding: 1rem; background: #f4f7f9; overflow: auto; font-size: .75rem; color: #405b6d; }
+@media (max-width: 1100px) { .audit-filter-grid { grid-template-columns: repeat(3, 1fr); } .audit-filter-grid > :first-child { grid-column: 1 / -1; } }
+@media (max-width: 650px) { .audit-filter-grid { grid-template-columns: 1fr; } .audit-filter-actions { grid-column: auto; } .audit-pagination { justify-content: flex-start; } }

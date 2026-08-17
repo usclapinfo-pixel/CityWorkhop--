@@ -41,30 +41,65 @@ export class CommunicationService implements ICommunicationService {
 
   async sendOTP(
     phoneNumber: string,
-    options?: { language?: string; channel?: 'sms' | 'whatsapp'; cityId?: string },
+    options?: {
+      language?: string;
+      channel?: 'sms' | 'whatsapp';
+      cityId?: string;
+      otpToken?: string;
+      otpCode?: string;
+    },
   ): Promise<{ otpToken: string; expiresIn: number }> {
     const channel = options?.channel || 'sms';
-
-    // Generate OTP via OTPService
-    const result = await this.otpService.generateOTP(phoneNumber, null, {
-      channel: channel as any,
-      language: options?.language as any,
-    });
+    const isProduction = process.env.NODE_ENV === 'production';
 
     // Get provider configuration
     const provider = await this.getActiveProvider(channel, options?.cityId, 'auth');
 
     if (!provider) {
-      console.warn(`No active ${channel} provider configured for city ${options?.cityId}`);
+      if (isProduction) {
+        const message = 'No active OTP provider configured for production OTP delivery.';
+
+        await this.auditService.log({
+          eventType: 'communication.provider_missing',
+          action: 'otp_request',
+          phoneNumber,
+          status: 'failure',
+          severity: 'high',
+          errorMessage: message,
+          metadata: {
+            channel,
+            cityId: options?.cityId,
+            deliveryMode: 'production_no_provider',
+            otpCodePresent: Boolean(options?.otpCode),
+          },
+        });
+
+        throw new Error(message);
+      }
+
+      const devOtpMessage = options?.otpCode
+        ? `[DEV MOCK OTP] No active ${channel} provider configured for city ${options?.cityId}. Mock delivery is enabled only for local development/test. OTP code is intentionally not exposed in logs.`
+        : `[DEV MOCK OTP] No active ${channel} provider configured for city ${options?.cityId}. Mock delivery is enabled only for local development/test.`;
+
+      console.warn(devOtpMessage);
       await this.auditService.log({
         eventType: 'communication.provider_missing',
         action: 'otp_request',
         phoneNumber,
         status: 'warning',
         severity: 'medium',
-        metadata: { channel, cityId: options?.cityId },
+        metadata: {
+          channel,
+          cityId: options?.cityId,
+          deliveryMode: 'dev_mock',
+          otpCodePresent: Boolean(options?.otpCode),
+          mockAllowed: true,
+        },
       });
-      return result;
+      return {
+        otpToken: options?.otpToken ?? '',
+        expiresIn: 0,
+      };
     }
 
     const adapter = this.providerRegistryService.getProvider(provider.providerType as ProviderType);
@@ -72,7 +107,8 @@ export class CommunicationService implements ICommunicationService {
     try {
       if (adapter?.sendOTP) {
         const response = await adapter.sendOTP(phoneNumber, {
-          otpToken: result.otpToken,
+          otpToken: options?.otpToken,
+          otpCode: options?.otpCode,
           channel,
           language: options?.language,
         });
@@ -99,7 +135,10 @@ export class CommunicationService implements ICommunicationService {
       });
     }
 
-    return result;
+    return {
+      otpToken: options?.otpToken ?? '',
+      expiresIn: 0,
+    };
   }
 
   async verifyOTP(otpToken: string, otp: string): Promise<boolean> {
