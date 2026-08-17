@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmConfig } from '@config/database.config';
@@ -9,6 +9,8 @@ import { SharedModule } from '@modules/shared/shared.module';
 import { CommunicationModule } from '@modules/communication/communication.module';
 import { CitiesModule } from '@modules/cities/cities.module';
 import { CatalogModule } from '@modules/catalog/catalog.module';
+import { BookingsModule } from '@modules/bookings/bookings.module';
+import { TrackingModule } from '@modules/tracking/tracking.module';
 
 @Module({
   imports: [
@@ -17,14 +19,14 @@ import { CatalogModule } from '@modules/catalog/catalog.module';
       envFilePath: '.env',
     }),
     TypeOrmModule.forRoot(typeOrmConfig),
-    // TODO: Add RedisModule when @nestjs-modules/redis is available
-    // RedisModule.forRootAsync({...}),
     AuthModule,
     UsersModule,
     SharedModule,
     CommunicationModule,
     CitiesModule,
     CatalogModule,
+    BookingsModule,
+    TrackingModule,
   ],
   controllers: [HealthController],
 })
